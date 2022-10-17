@@ -10,6 +10,7 @@ final class URLRequestBuilderTests: XCTestCase {
 
 private func XCTAssertURLRequestEquals(
   _ request: URLRequest,
+  headers: [Header] = [],
   url: String,
   httpMethod: HTTPMethod,
   body: Data?
@@ -21,6 +22,18 @@ private func XCTAssertURLRequestEquals(
   guard let generatedHttpMethod = request.httpMethod else {
     XCTFail("Generated HTTPMethod is missing on \(request)")
     return
+  }
+  if let requestHeaders = request.allHTTPHeaderFields {
+    let generatedHeaderKeys = requestHeaders.keys.sorted(by: { $0 < $1 })
+    let expectedHeaderKeys = headers.map(\.name).sorted(by: { $0 < $1 })
+    XCTAssertEqual(generatedHeaderKeys, expectedHeaderKeys)
+    expectedHeaderKeys.forEach { expectedHeaderKey in
+      let expectedHeader = headers.first(where: { $0.name == expectedHeaderKey })!
+      let generatedHeader = requestHeaders[expectedHeaderKey]!
+      XCTAssertEqual(expectedHeader.value, generatedHeader, "Header \(expectedHeader.name) is different")
+    }
+  } else if headers.isEmpty == false {
+    XCTFail("Generated headers are different expected headers \(request)")
   }
   XCTAssertEqual(generatedURL, url)
   XCTAssertEqual(generatedHttpMethod.lowercased(), httpMethod.rawValue)
@@ -66,6 +79,55 @@ extension URLRequestBuilderTests {
       urlRequest,
       url: "https://api.github.com/api/v1/getRequestExample",
       httpMethod: .post,
+      body: .none
+    )
+  }
+}
+
+// ========================================================================
+// MARK: URLRequestBuilderTests: Headers tests
+// ========================================================================
+
+extension URLRequestBuilderTests {
+  struct NoQueryNoPathGetWithHeadersRequestExample: URLRequestBuilder {
+    static let method: HTTPMethod = .get
+    static let path: String = "/api/v1/getRequestExample"
+    @RequestHeader(name: "spyder-auth") var auth: String
+    init(auth: String) { self.auth = auth }
+  }
+}
+
+extension URLRequestBuilderTests {
+  func test_noQueryNoPathGetRequestHeadersExample() throws {
+    // Given
+    let builder = NoQueryNoPathGetWithHeadersRequestExample(auth: "auth-value")
+    // When
+    let urlRequest = try builder.urlRequest(for: GitHubAPI.build(using: Invoker.defaultHTTPInvoker))
+    // Then
+    XCTAssertURLRequestEquals(
+      urlRequest,
+      headers: [.init(name: "spyder-auth", value: "auth-value")],
+      url: "https://api.github.com/api/v1/getRequestExample",
+      httpMethod: .get,
+      body: .none
+    )
+  }
+  func test_noQueryNoPathGetRequestHeadersAndApiHeadersExample() throws {
+    // Given
+    let builder = NoQueryNoPathGetWithHeadersRequestExample(auth: "auth-value")
+    let api = GitHubAPI.build(using: Invoker.defaultHTTPInvoker)
+    api.addHeader(.init(name: "spyder-additional-header", value: "Value!"))
+    // When
+    let urlRequest = try builder.urlRequest(for: api)
+    // Then
+    XCTAssertURLRequestEquals(
+      urlRequest,
+      headers: [
+        .init(name: "spyder-auth", value: "auth-value"),
+        .init(name: "spyder-additional-header", value: "Value!")
+      ],
+      url: "https://api.github.com/api/v1/getRequestExample",
+      httpMethod: .get,
       body: .none
     )
   }

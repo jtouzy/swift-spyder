@@ -1,4 +1,7 @@
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 
 // MARK: API invoking functions
 
@@ -6,6 +9,7 @@ extension API {
   public func invokeAndForget<Input>(request: Input) async throws
   where Input: URLRequestBuilder {
     let urlRequest = try request.urlRequest(for: self)
+    logInvoke(for: urlRequest)
     do {
       let response = try await invoker(urlRequest)
       logResponse(for: urlRequest, response: response)
@@ -17,6 +21,7 @@ extension API {
   public func invokeWaitingResponse<Input, Output>(request: Input) async throws -> Output
   where Input: URLRequestBuilder, Output: Decodable {
     let urlRequest = try request.urlRequest(for: self)
+    logInvoke(for: urlRequest)
     let response: HTTPResponse = try await {
       do {
         var response = try await invoker(urlRequest)
@@ -47,7 +52,17 @@ public enum Invoker {
     guard let httpResponse = response as? HTTPURLResponse else {
       throw Invoker.DefaultHTTPInvokerError.missingHTTPResponse
     }
-    return .init(statusCode: httpResponse.statusCode, data: data)
+    return .init(
+      statusCode: httpResponse.statusCode,
+      headers: httpResponse.allHeaderFields.compactMap { element in
+        guard
+          let stringKey = element.key as? String,
+          let value = element.value as? String
+        else { return .none }
+        return .init(name: stringKey, value: value)
+      },
+      data: data
+    )
   }
 }
 extension Invoker {

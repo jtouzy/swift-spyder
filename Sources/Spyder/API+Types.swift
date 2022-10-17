@@ -6,21 +6,29 @@ public enum HTTPMethod: String {
 
 public struct HTTPResponse {
   public let statusCode: Int
+  public let headers: [Header]
   public let data: Data
 
-  public init(statusCode: Int, data: Data) {
+  public init(statusCode: Int, headers: [Header], data: Data) {
     self.statusCode = statusCode
+    self.headers = headers
     self.data = data
   }
 }
 
 public struct Header: Hashable {
-  let name: String
-  let value: String
+  public let name: String
+  public let value: String
 
   public init(name: String, value: String) {
     self.name = name
     self.value = value
+  }
+}
+
+extension Header {
+  public static func authorization(bearer value: String) -> Self {
+    .init(name: "Authorization", value: "Bearer \(value)")
   }
 }
 
@@ -32,9 +40,6 @@ extension Header {
   }
 
   public static func contentType(_ value: Header.ContentType) -> Self {
-    .init(
-      name: "Content-Type",
-      value: value.rawValue
-    )
+    .init(name: "Content-Type", value: value.rawValue)
   }
 }
