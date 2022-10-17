@@ -1,4 +1,7 @@
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 
 public protocol URLRequestBuilder {
   static var method: HTTPMethod { get }
@@ -13,7 +16,7 @@ extension URLRequestBuilder {
   func urlRequest<ConstrainedType>(for api: API<ConstrainedType>) throws -> URLRequest {
     let mirror = Mirror(reflecting: self)
     var evaluatedPath = Self.path
-    var headers: Set<Header> = api.headersBuilder()
+    var headers: Set<Header> = api.allHeaders
     var queryItems: [URLQueryItem] = []
     var httpBody: Data?
     for child in mirror.children {

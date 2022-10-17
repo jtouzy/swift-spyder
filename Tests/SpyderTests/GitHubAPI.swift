@@ -18,12 +18,16 @@ extension GitHubAPI {
 }
 
 extension GitHubAPI {
-  static func build(using invoker: @escaping API.Invoker) -> Self {
+  static func build(
+    using invoker: @escaping API.Invoker,
+    headersBuilder: @escaping API.HeadersBuilder = { .init() }
+  ) -> GitHubAPI {
     .init(
       baseURLComponents: { components in
         components.scheme = "https"
         components.host = "api.github.com"
       },
+      headersBuilder: headersBuilder,
       invoker: invoker
     )
   }
