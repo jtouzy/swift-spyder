@@ -9,34 +9,48 @@ extension API {
   public func invokeAndForget<Input>(request: Input) async throws
   where Input: URLRequestBuilder {
     let urlRequest = try request.urlRequest(for: self)
-    logInvoke(for: urlRequest)
+    try await invokeWithCacheCheck(urlRequest)
+  }
+  public func invokeWaitingResponse<Input, Output>(request: Input) async throws -> Output
+  where Input: URLRequestBuilder, Output: Decodable {
+    let urlRequest = try request.urlRequest(for: self)
+    let responseData = try await invokeWithCacheCheck(urlRequest)
+    return try decodeResponseData(responseData, from: urlRequest)
+  }
+}
+
+extension API {
+  @discardableResult
+  private func invokeWithCacheCheck(_ urlRequest: URLRequest) async throws -> Data {
+    let cachedResponseData = cacheManager.findNonExpiredEntry(for: urlRequest)
+    logInvoke(for: urlRequest, isCached: cachedResponseData != nil)
+    guard let cachedResponseData else {
+      let response = try await invokeUsingInvoker(urlRequest)
+      cacheManager.registerEntryIfNeeded(response.data, for: urlRequest)
+      return response.data
+    }
+    return cachedResponseData
+  }
+  private func invokeUsingInvoker(_ urlRequest: URLRequest) async throws -> HTTPResponse {
     do {
-      let response = try await invoker(urlRequest)
+      var response = try await invoker(urlRequest)
       logResponse(for: urlRequest, response: response)
+      for middleware in responseMiddlewares {
+        response = try await middleware(self, response)
+      }
+      if (200...299).contains(response.statusCode) == false {
+        throw API.Error.invalidStatusCodeInResponse(response: response)
+      }
+      return response
     } catch {
       logInvocationFailure(for: urlRequest, error: error)
       throw error
     }
   }
-  public func invokeWaitingResponse<Input, Output>(request: Input) async throws -> Output
-  where Input: URLRequestBuilder, Output: Decodable {
-    let urlRequest = try request.urlRequest(for: self)
-    logInvoke(for: urlRequest)
-    let response: HTTPResponse = try await {
-      do {
-        var response = try await invoker(urlRequest)
-        logResponse(for: urlRequest, response: response)
-        for middleware in responseMiddlewares {
-          response = try await middleware(self, response)
-        }
-        return response
-      } catch {
-        logInvocationFailure(for: urlRequest, error: error)
-        throw error
-      }
-    }()
+  private func decodeResponseData<Output>(_ data: Data, from urlRequest: URLRequest) throws -> Output
+  where Output: Decodable {
     do {
-      return try jsonDecoder.decode(Output.self, from: response.data)
+      return try jsonDecoder.decode(Output.self, from: data)
     } catch {
       logDecodingError(for: urlRequest, error: error)
       throw error

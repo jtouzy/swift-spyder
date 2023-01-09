@@ -20,7 +20,8 @@ extension GitHubAPI {
 extension GitHubAPI {
   static func build(
     using invoker: @escaping API.Invoker,
-    headersBuilder: @escaping API.HeadersBuilder = { .init() }
+    headersBuilder: @escaping API.HeadersBuilder = { .init() },
+    cachePolicy: CachePolicy = .none
   ) -> GitHubAPI {
     .init(
       baseURLComponents: { components in
@@ -28,7 +29,8 @@ extension GitHubAPI {
         components.host = "api.github.com"
       },
       headersBuilder: headersBuilder,
-      invoker: invoker
+      invoker: invoker,
+      cachePolicy: cachePolicy
     )
   }
 }

@@ -17,6 +17,7 @@ public class API<ConstrainedType> {
   let invoker: Invoker
   let logger: Logger
   let responseMiddlewares: [ResponseMiddleware]
+  var cacheManager: CacheManager
 
   public init(
     baseURLComponents: @escaping (inout URLComponents) -> Void,
@@ -26,7 +27,8 @@ public class API<ConstrainedType> {
     persistentHeaders: Set<Header> = [],
     invoker: @escaping Invoker,
     logger: @escaping Logger = { _, _ in },
-    responseMiddlewares: [ResponseMiddleware] = []
+    responseMiddlewares: [ResponseMiddleware] = [],
+    cachePolicy: CachePolicy = .none
   ) {
     var urlComponents = URLComponents()
     baseURLComponents(&urlComponents)
@@ -38,5 +40,6 @@ public class API<ConstrainedType> {
     self.invoker = invoker
     self.logger = logger
     self.responseMiddlewares = responseMiddlewares
+    self.cacheManager = .init(policy: cachePolicy)
   }
 }
