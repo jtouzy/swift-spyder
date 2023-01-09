@@ -4,9 +4,9 @@ import FoundationNetworking
 #endif
 
 extension API {
-  internal func logInvoke(for urlRequest: URLRequest) {
+  internal func logInvoke(for urlRequest: URLRequest, isCached: Bool) {
     logger(
-      "🕸️ invoke",
+      "🕸️ invoke\(isCached ? " [CACHED]" : "")",
       [
         "method=[\(urlRequest.httpMethod ?? "GET")]",
         "absolute_url=[\(urlRequest.url?.absoluteString ?? "nil")]",
@@ -22,14 +22,14 @@ extension API {
       message: "\(isSuccess ? "✅ success" : "❌ failure")[\(response.statusCode)]"
     )
   }
-  internal func logInvocationFailure(for urlRequest: URLRequest, error: Error) {
+  internal func logInvocationFailure(for urlRequest: URLRequest, error: Swift.Error) {
     logNetworkingEvent(
       for: urlRequest,
       message: "❌ invocationFailure",
       complementaryMessage: String(reflecting: error)
     )
   }
-  internal func logDecodingError(for urlRequest: URLRequest, error: Error) {
+  internal func logDecodingError(for urlRequest: URLRequest, error: Swift.Error) {
     logNetworkingEvent(
       for: urlRequest,
       message: "❌ decodingFailure",
